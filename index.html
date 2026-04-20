@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>晚餐決定器 - 大字活力版</title>
+    <style>
+        :root {
+            --bg-page: #f9fbf7;         
+            --cell-bg: #c8e6c9;       
+            --active-color: #ffd54f;   
+            --text-black: #1a1a1a;     
+            --pink-accent: #ff4081;    
+            --btn-add: #5a8a9d;        
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+            background-color: var(--bg-page);
+            background-image: url("https://www.transparenttextures.com/patterns/cutlery.png");
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.98);
+            padding: 30px 20px;
+            border-radius: 45px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.05);
+            width: 95%;
+            max-width: 500px; /* 再放寬一點，支撐大格子 */
+            text-align: center;
+            border: 10px solid #fff;
+        }
+
+        h1 { 
+            margin: 0 0 5px 0; 
+            font-size: 1.85rem; 
+            color: var(--text-black); 
+            letter-spacing: 2px;
+            font-weight: 900;
+        }
+
+        .sub-title { 
+            margin: 0 0 20px 0; 
+            color: var(--pink-accent); 
+            font-weight: 900; 
+            font-size: 1.15rem;
+        }
+
+        .marquee-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+            gap: 15px; 
+            margin-bottom: 25px;
+        }
+
+        .cell {
+            aspect-ratio: 1 / 1;
+            background: var(--cell-bg); 
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            /* 字體大幅加大 */
+            font-size: 1.3rem; 
+            font-weight: 900;
+            color: var(--text-black); 
+            transition: all 0.15s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+            box-shadow: 0 5px 12px rgba(0,0,0,0.06);
+            padding: 8px;
+            line-height: 1.1;
+            text-align: center;
+            border: none;
+            overflow: hidden;
+            word-break: break-all;
+        }
+
+        .active {
+            background: var(--active-color);
+            transform: scale(1.1);
+            box-shadow: 0 0 25px rgba(255, 213, 79, 0.7);
+            z-index: 10;
+        }
+
+        .center-status {
+            grid-column: 2 / 4;
+            grid-row: 2 / 4;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 5rem;
+            background: #fff;
+            border-radius: 35px;
+            user-select: none;
+        }
+
+        .spinning-face {
+            animation: pulse 0.5s infinite alternate;
+        }
+        @keyframes pulse {
+            from { transform: scale(0.9); }
+            to { transform: scale(1.1); }
+        }
+
+        .controls { display: flex; flex-direction: column; gap: 15px; align-items: center; }
+        .input-group { display: flex; gap: 10px; width: 100%; }
+        
+        input {
+            flex: 1;
+            padding: 16px;
+            border: 2px solid #edf2ed;
+            border-radius: 20px;
+            font-size: 16px;
+            outline: none;
+            background: #fafafa;
+        }
+
+        .add-btn { 
+            background: var(--btn-add); 
+            color: #fff; 
+            width: 90px; 
+            border-radius: 20px; 
+            border: none; 
+            cursor: pointer;
+            font-size: 1.15rem; 
+            font-weight: 900;
+        }
+        
+        .start-btn { 
+            background: var(--pink-accent); 
+            color: white; 
+            font-size: 1.5rem; 
+            font-weight: 900;
+            padding: 14px 0; 
+            width: 100%;    
+            border-radius: 22px;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 5px 0 #d81b60;
+            letter-spacing: 4px;
+            transition: all 0.1s;
+        }
+        
+        .start-btn:hover { transform: translateY(1px); box-shadow: 0 4px 0 #d81b60; }
+        .start-btn:active { transform: translateY(4px); box-shadow: 0 1px 0 #d81b60; }
+        .start-btn:disabled { background: #d0d7cf; box-shadow: 0 4px 0 #b3bbb2; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>🍴 晚餐決定器🍴</h1>
+        <p class="sub-title">今天不想動腦，就交給命運吧！</p>
+
+        <div class="marquee-grid" id="grid">
+            <div class="center-status" id="status">😋</div>
+        </div>
+
+        <div class="controls">
+            <div class="input-group">
+                <input type="text" id="shopInput" placeholder="加入新名單...">
+                <button class="add-btn" onclick="addNewShop()">新增</button>
+            </div>
+            <button class="start-btn" id="spinBtn" onclick="startSpin()">開始決定</button>
+        </div>
+    </div>
+
+    <script>
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playTickSound() {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.05);
+        }
+
+        function playWinSound() {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); 
+            osc.frequency.exponentialRampToValueAtTime(1046.50, audioCtx.currentTime + 0.3);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.5);
+        }
+
+        let shops = [
+            "麗媽火鍋", "孫東寶", "鐵路便當", "阿文快炒", 
+            "小紅越式河粉", "阿川滷味", "懷香餃子", "南港小吃",
+            "炸老大", "高姊藥燉排骨", "橫科臭豆腐", "南港四寶湯"
+        ];
+        
+        const path = [0, 1, 2, 3, 7, 11, 15, 14, 13, 12, 8, 4];
+        let cellElements = [];
+        let currentPathIdx = 0;
+        let isSpinning = false;
+
+        function init() {
+            const grid = document.getElementById('grid');
+            const statusBox = document.getElementById('status');
+            grid.innerHTML = '';
+            grid.appendChild(statusBox);
+
+            cellElements = [];
+            for (let i = 0; i < 16; i++) {
+                if ([5, 6, 9, 10].includes(i)) continue;
+                const div = document.createElement('div');
+                div.className = 'cell';
+                const pIdx = path.indexOf(i);
+                const name = shops[pIdx] || "---";
+                
+                // 店名字體自動調整邏輯
+                if(name.length > 5) {
+                    div.style.fontSize = "15px";
+                } else if(name.length > 4) {
+                    div.style.fontSize = "18px";
+                }
+
+                div.innerText = name;
+                grid.appendChild(div);
+                cellElements[i] = div;
+            }
+        }
+
+        function addNewShop() {
+            const input = document.getElementById('shopInput');
+            const val = input.value.trim();
+            if (val && !isSpinning) {
+                shops.push(val);
+                if (shops.length > 12) shops.shift();
+                input.value = '';
+                init();
+            }
+        }
+
+        function startSpin() {
+            if (isSpinning) return;
+            isSpinning = true;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            const btn = document.getElementById('spinBtn');
+            const status = document.getElementById('status');
+            btn.disabled = true;
+            status.innerText = "🤤";
+            status.classList.add('spinning-face');
+
+            let steps = 0;
+            let totalSteps = 45 + Math.floor(Math.random() * 12); 
+            let speed = 60;
+
+            function run() {
+                cellElements[path[currentPathIdx]].classList.remove('active');
+                currentPathIdx = (currentPathIdx + 1) % path.length;
+                cellElements[path[currentPathIdx]].classList.add('active');
+                playTickSound();
+
+                steps++;
+                if (steps < totalSteps) {
+                    if (totalSteps - steps < 12) speed += 60;
+                    setTimeout(run, speed);
+                } else {
+                    isSpinning = false;
+                    btn.disabled = false;
+                    status.innerText = "🤩";
+                    status.classList.remove('spinning-face');
+                    playWinSound();
+                    const result = cellElements[path[currentPathIdx]].innerText;
+                    setTimeout(() => {
+                        alert("今天就去吃：【" + result + "】");
+                    }, 300);
+                }
+            }
+            run();
+        }
+        init();
+    </script>
+</body>
+</html>
